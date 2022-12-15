@@ -31,16 +31,18 @@ void reorderCSR(const int *ptr, const int *idx, const int *map, const int *rever
 void load_graph(std::string dset, int &num_v, int &num_e, int* &indptr, int* &indices, bool shuffle, std::string reorder_subfix)
 {
     dbg("loading");
-    std::string basedir = "../data/";
-    auto inputgraph = basedir + dset + ".graph";
-    auto ptrfile = inputgraph + ".ptrdump";
-    auto edgefile = inputgraph + ".edgedump";
-    auto configpath = basedir + dset + ".config";
+    std::string basedir = "/home/ygong07/zhai/GNN-Computing/data/";
+
+    auto inputgraph = dset + ".graph";
+    auto ptrfile = dset + "_csr_noeid.offset";
+    auto edgefile = dset + "_csr_noeid.nebrs";
+    auto configpath = dset + "_graph_noeid.info";
 
     assert(fexist(configpath));
     FILE *fin(fopen(configpath.c_str(), "r"));
-    fscanf(fin, "%d", &num_v);
-    fscanf(fin, "%d", &num_e);
+    //fscanf(fin, "%d", &num_v);
+    //fscanf(fin, "%d", &num_e);
+    fscanf(fin, "v_count=%u\n e_count=%u", &num_v, &num_e);
     fclose(fin);
 
     indptr = new int[num_v + 1];

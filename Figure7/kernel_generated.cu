@@ -28,6 +28,8 @@ void GCN_run_impl(int64_t at, float *feat, float *out_feat, int blocksize, int s
 	// dbg(featlen);
 	((Aggregator_GCN *)at)->run_with_feat(feat, out_feat, blocksize, scheduled, featlen);
 	// dbg(featlen);
+    
+    // cout << "::::::" << endl;
 	return;
 }
 

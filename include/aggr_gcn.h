@@ -98,8 +98,9 @@ __global__ void aggr_gcn_target(int *ptr, int *idx, float *val, int *targetv, fl
     {
         shared_idx[i] = idx[i + loc1] * INFEATURE;
         shared_val[i] = val[i + loc1];
+        //shared_val[i] = i+loc1; //val[i + loc1];
     }
-    // __syncthreads();
+    __syncwarp();
 
     if (col < INFEATURE)
     {
@@ -397,10 +398,15 @@ public:
         // timestamp(t0);
         if (scheduled)
         {
+            cout  <<  num_v << " " << (num_v + tmp_target_in_block - 1) / tmp_target_in_block << " " << "block dim1: " << BLOCK_SIZE / (feat_in / 32) << " "<< "block dim2:" << feat_in / 32<< endl;
+            cout << num_v << " Grid " << grid.x << ":" << grid.y << ":" << block.x << ":" << block.y << endl; 
+            cout << "shared_size " << shared_size<<  " neighor group_size: " << neighbor_group_size 
+                 << " feat_in: " << feat_in << endl;
             aggr_gcn_target<<<grid, block, shared_size>>>(d_ptr_scheduled, d_idx_scheduled, d_val_scheduled, d_target_scheduled, vin, vout, num_target, feat_in, neighbor_group_size);
         }
         else
         {
+            cout << "999 ha?"<< endl;
             aggr_gcn<<<grid, block, shared_size>>>(d_ptr, d_idx, d_val, vin, vout, num_v, feat_in);
             // aggr_gcn_shared<<<grid, block, BLOCK_SIZE * 2 * sizeof(float)>>>(d_ptr, d_idx, d_val, vin, vout, num_v, feat_in);
         }
@@ -411,20 +417,22 @@ public:
     double run_with_feat(float *vin, float *vout, int BLOCK_SIZE, bool scheduled, int feat) 
     {
         feat_in = feat;
-        if (BLOCK_SIZE < feat_in) BLOCK_SIZE = feat_in;
-        int tmp_target_in_block = BLOCK_SIZE / feat_in;
+        int block_size = BLOCK_SIZE;
+        if (BLOCK_SIZE < feat_in) block_size = feat_in;
+
+        block_size = block_size /((feat_in + 31)/32);
+        int tmp_target_in_block = (block_size + 31) / 32;//XXX
 
         int shared_size = 0;
 
         dim3 grid((num_v + tmp_target_in_block - 1) / tmp_target_in_block);
-        dim3 block(BLOCK_SIZE / (feat_in / 32), feat_in / 32);
-
+        dim3 block(block_size, (feat_in + 31) / 32);
         if (scheduled)
         {
             grid.x = (num_target + tmp_target_in_block - 1) / tmp_target_in_block;
             shared_size = neighbor_group_size * 2 * tmp_target_in_block * sizeof(int);
             assert(d_ptr_scheduled != NULL);
-            checkCudaErrors(cudaMemset(vout, 0, num_v * feat_out * sizeof(float)));
+            checkCudaErrors(cudaMemset(vout, 0, num_v * feat_in * sizeof(float)));
         }
 
         // checkCudaErrors(cudaDeviceSynchronize());
@@ -432,9 +440,16 @@ public:
         if (scheduled)
         {
             aggr_gcn_target<<<grid, block, shared_size>>>(d_ptr_scheduled, d_idx_scheduled, d_val_scheduled, d_target_scheduled, vin, vout, num_target, feat_in, neighbor_group_size);
+            /*
+            cout << num_v << ":" <<  num_target << " Grid " << grid.x << ":" << grid.y << ":" 
+                 << block.x << ":" << block.y << endl; 
+            cout << "shared_size " << shared_size <<  " neighor group_size: " << neighbor_group_size 
+                 << " feat_in: " << feat_in << endl;
+            */
         }
         else
         {
+            cout << "999 ha?"<< endl;
             aggr_gcn<<<grid, block, shared_size>>>(d_ptr, d_idx, d_val, vin, vout, num_v, feat_in);
             // aggr_gcn_shared<<<grid, block, BLOCK_SIZE * 2 * sizeof(float)>>>(d_ptr, d_idx, d_val, vin, vout, num_v, feat_in);
         }
